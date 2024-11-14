@@ -250,9 +250,53 @@ GROUP BY dea.location
 ORDER BY 3 DESC;
 ```
 
+<img src="https://github.com/AmandaRigdon/CovidAnalysis/blob/main/CovidMedianAge.png?raw=true" width = "606" height = "604" />
+
 Findings:
 
-* Median age doesn't necessarily seem to mean a higher death count. UK had a median age of 40.8, but the US had a much higher death count with a median age of 38.3.
-* In many cases, such as in European countries, the median age is higher but has a lower death count. This could also be more due to the total population of European countries being smaller than countries such as the United States.
+* Median age doesn't necessarily seem to mean a higher death count. Europe does have the highest number of deaths, but Asia has a median age close to them and a lower death count.
 * Population density (influencing the likelihood of being exposed) is also something to consider. India has 1.429 billion people with many covid deaths, but a low median age of 28.2.
 
+Is there a relationship with vaccines administered and GDP per capita?
+
+```sql
+SELECT dea.continent, dea.location, MAX(dea.total_deaths), SUM(vac.new_vaccinations), vac.gdp_per_capita
+FROM coviddeaths2 AS dea
+JOIN vaccinations2 AS vac
+	ON dea.location = vac.location
+    AND dea.date = vac.date
+WHERE dea.continent is not NULL
+GROUP BY dea.location
+ORDER BY 5, 3 DESC;
+```
+
+<img src="https://github.com/AmandaRigdon/CovidAnalysis/blob/main/CovidGDP.png?raw=true" width = "675" height = "602" />
+
+Findings:
+
+* The graph above is grouped by continent and has the average GDP per capita per continent. It's easy to see that Asia had the highest amount of vaccinations with an average GDP per capita of 22,617.
+* Europe has a higher average GDP but much less vaccinations.
+* I checked the United States and while it does have quite a high GDP, there are still many deaths. The United States still administered 67 million vaccines.
+* I thought high GDP may influence the resources available to obtain vaccines, but it's hard to tell from this data. Lockdown measures and vaccine requirements that differed from country to country likely played a larger part.
+
+As Covid rose, did the cardiovasular death rates rise?
+
+```sql
+SELECT dea.continent, dea.location, dea.date, MAX(dea.total_deaths), MAX(vac.cardiovasc_death_rate)
+FROM coviddeaths2 AS dea
+JOIN vaccinations2 AS vac
+	ON dea.location = vac.location
+    AND dea.date = vac.date
+WHERE dea.continent is not NULL
+GROUP BY dea.location, dea.date
+ORDER BY 5 DESC;
+```
+
+<img src="https://github.com/AmandaRigdon/CovidAnalysis/blob/main/CovidCardio.png?raw=true" width = "879" height = "600" />
+
+Findings:
+
+* As Covid deaths rose, cardiovascular death rates stayed about the same.
+* I'm inferring from this data that cardiovascular deaths from covid were counted in covid deaths, and cardiovascular deaths not related to covid were separated, which would explain why they did not change much over 4 years.
+
+Much of this information has also been turned into a dashboard in Tableau located [here!](https://public.tableau.com/shared/ZCKXZ2NFH?:display_count=n&:origin=viz_share_link)
