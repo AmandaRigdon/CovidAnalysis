@@ -151,4 +151,108 @@ Findings:
 
 * There have been 775,935,057 covid cases and 7,060,988 deaths worldwide. That means we have lost .91% of our population due to Covid.
 
+In the next query, I joined both the coviddeaths and vaccination tables to see the number of vaccines administered side by side with a country's population.
+
+```sql
+SELECT dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations
+FROM coviddeaths2 AS dea
+JOIN vaccinations2 AS vac
+	ON dea.location = vac.location 
+    AND dea.date = vac.date
+WHERE dea.continent is not NULL
+ORDER BY 1,2,3;
+```
+
+Findings:
+
+* In the United States starting in May of 2023, there is no new vaccine information at all. Maybe this information stopped being tracked? This seems to be a trend among other countries as well, like China and France.
+* This information may not be obtained anymore possibly because Covid has died down a lot compared to when the outbreak started
+
+I also made a query to see a rolling count of vaccinations by date:
+
+```sql
+SELECT dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations
+, SUM(vac.new_vaccinations) OVER (Partition by dea.location ORDER BY dea.location, dea.date) as Rolling_People_Vaccinated
+FROM coviddeaths2 AS dea
+JOIN vaccinations2 AS vac
+	ON dea.location = vac.location 
+    AND dea.date = vac.date
+WHERE dea.continent is not NULL
+ORDER BY 2,3;
+```
+
+To query off the new Rolling_People_Vaccinated column, I created a CTE as well as a temporary table to show an alternative way to get the same information.
+
+CTE:
+
+```sql
+WITH Pop_Vs_Vac (Continent, Location, Date, Population, New_Vaccinations, Rolling_People_Vaccinated)
+AS 
+(
+SELECT dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations
+, SUM(vac.new_vaccinations) OVER (Partition by dea.location ORDER BY dea.location, dea.date) as Rolling_People_Vaccinated
+FROM coviddeaths2 AS dea
+JOIN vaccinations2 AS vac
+	ON dea.location = vac.location 
+    AND dea.date = vac.date
+WHERE dea.continent is not NULL
+-- ORDER BY 2,3
+)
+SELECT *, (Rolling_People_Vaccinated/population)*100 as Ratio_Vaccinated
+from Pop_Vs_Vac;
+```
+
+Temporary Table:
+
+```sql
+DROP TABLE IF EXISTS Percent_Population_Vaccinated;
+CREATE TEMPORARY TABLE Percent_Population_Vaccinated 
+(
+Continent nvarchar(255),
+Location nvarchar(255),
+Date datetime,
+Population bigint,
+New_vaccinations int,
+Rolling_People_Vaccinated bigint
+);
+```
+
+```sql
+INSERT INTO Percent_Population_Vaccinated 
+(
+SELECT dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations
+, SUM(vac.new_vaccinations) OVER (Partition by dea.location ORDER BY dea.location, dea.date) as Rolling_People_Vaccinated
+FROM coviddeaths2 AS dea
+JOIN vaccinations2 AS vac
+	ON dea.location = vac.location 
+    AND dea.date = vac.date
+WHERE dea.continent is not NULL
+-- ORDER BY 2,3
+);
+SELECT *, (Rolling_People_Vaccinated/Population)*100
+from Percent_Population_Vaccinated;
+```
+
+Findings:
+
+* Because we are at a point in time where people have gotten vaccines multiple times, the Ratio_Vaccinated column in some areas shows over 100%. Instead of percent of people vaccinated, I interpreted it more as a ratio of doses per population. For example, a value such as 156 would represent 156 vaccines per 100 people.
+
+Looking to see if median age and total deaths have any relationship:
+
+```sql
+SELECT dea.continent, dea.location, MAX(dea.total_deaths), vac.median_age
+FROM coviddeaths2 AS dea
+JOIN vaccinations2 AS vac
+	ON dea.location = vac.location
+    AND dea.date = vac.date
+WHERE dea.continent is not NULL
+GROUP BY dea.location
+ORDER BY 3 DESC;
+```
+
+Findings:
+
+* Median age doesn't necessarily seem to mean a higher death count. UK had a median age of 40.8, but the US had a much higher death count with a median age of 38.3.
+* In many cases, such as in European countries, the median age is higher but has a lower death count. This could also be more due to the total population of European countries being smaller than countries such as the United States.
+* Population density (influencing the likelihood of being exposed) is also something to consider. India has 1.429 billion people with many covid deaths, but a low median age of 28.2.
 
